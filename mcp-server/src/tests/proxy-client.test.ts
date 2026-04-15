@@ -22,7 +22,7 @@ describe('probeExistingServer', () => {
   });
 
   it('returns alive:true when a primary server is running', async () => {
-    server = new PrimaryHttpServer(TEST_PORT, '0.4.1', noop);
+    server = new PrimaryHttpServer(TEST_PORT, '0.4.1', noop, 0);
     await server.start();
 
     const probe = await probeExistingServer(TEST_PORT);
@@ -51,7 +51,7 @@ describe('proxyToolCall', () => {
     const executor: ToolExecutor = vi.fn(async () => ({
       content: [{ type: 'text', text: '{"ok":true}' }],
     }));
-    server = new PrimaryHttpServer(TEST_PORT, '0.4.1', executor);
+    server = new PrimaryHttpServer(TEST_PORT, '0.4.1', executor, 0);
     await server.start();
 
     const result = await proxyToolCall(TEST_PORT, 'read_file', { path: '/x.gd' }, 5000);
@@ -77,7 +77,7 @@ describe('registerProxyClient / unregisterProxyClient', () => {
   });
 
   it('register increments and unregister decrements the count', async () => {
-    server = new PrimaryHttpServer(TEST_PORT, '0.4.1', noop);
+    server = new PrimaryHttpServer(TEST_PORT, '0.4.1', noop, 0);
     await server.start();
 
     await registerProxyClient(TEST_PORT);

@@ -8,6 +8,7 @@ import http from 'node:http';
 export interface ProbeResult {
   alive: boolean;
   version?: string;
+  toolCount?: number;
 }
 
 export interface ProxyToolResult {
@@ -26,7 +27,7 @@ export async function probeExistingServer(port: number): Promise<ProbeResult> {
     const body = await httpGet(`http://127.0.0.1:${port}/health`, REQUEST_TIMEOUT);
     const data = JSON.parse(body);
     if (data.server === 'godot-mcp-server') {
-      return { alive: true, version: data.version };
+      return { alive: true, version: data.version, toolCount: data.tool_count };
     }
     return { alive: false };
   } catch {

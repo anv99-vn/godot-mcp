@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.3] - 2026-04-14
+
+### Added
+- **`set_mesh` tool** — assign primitive meshes (BoxMesh, SphereMesh, CylinderMesh, CapsuleMesh, PlaneMesh, PrismMesh, TorusMesh, QuadMesh, TextMesh) or file-based meshes to MeshInstance3D nodes, making 3D geometry visible from MCP
+- **`set_material` tool** — create and assign StandardMaterial3D (albedo, metallic, roughness, emission, transparency) or load materials from file; supports MeshInstance3D, CSG, and GeometryInstance3D nodes
+- **`instance_scene` tool** — add scene instances (prefabs) as child nodes with live references to the source `.tscn`, enabling composable scene building from MCP
+- **`get_node_spatial_info` tool** — query computed 3D spatial data (local/global transforms, positions, scales, rotation quaternions, subtree bounding boxes) for Node3D nodes
+- **`measure_node_distance` tool** — measure world-space 3D distance and horizontal XZ distance between two Node3D nodes
+- **`snap_node_to_grid` tool** — snap a Node3D position to a grid in local or global space, with per-axis control
+- **VariantCodec** — shared serialization/parsing for Godot variant types, adding support for Quaternion, Basis, Transform3D, and AABB across all tools
+- **TS/GDScript alignment test** — test suite now verifies that every MCP tool definition has a matching handler in the Godot plugin executor
+
+### Fixed
+- **Stale primary server breaks new tools after updates** — when a new MCP server instance detected an existing primary, it blindly proxied to it even if the primary was running old code. New instances now compare both version and tool count; mismatched primaries are automatically replaced ([#43](https://github.com/tomyud1/godot-mcp/pull/43))
+- **`read_scene` root node self-reference** — the root node no longer reports a spurious `instance` field pointing to its own scene file; instance field now only appears on actual child instances
+- **`add_node` name reporting** — `add_node` now uses readable names (`add_child(node, true)`) and reports the actual assigned name (which may differ from the requested name if there was a conflict)
+- **`set_collision_shape` size parsing** — size parameter now uses the shared `_parse_value` instead of manual dict parsing, supporting the same type inference as other tools
+- **`modify_node_property` now supports 3D types** — Quaternion, Basis, Transform3D, and AABB values can now be set via `modify_node_property`, not just vectors and colors
+- **Duplicate `_parse_value`/`_serialize_value`** — extracted into shared VariantCodec, eliminating duplicated code between `scene_tools.gd` and `project_tools.gd`
+- **Inherited scene instantiation** — `_load_scene` now uses `GEN_EDIT_STATE_MAIN_INHERITED` for inherited scenes and `GEN_EDIT_STATE_INSTANCE` for scene instances, fixing editor-aware PackedScene handling
+
 ## [0.4.2] - 2026-04-09
 
 ### Added

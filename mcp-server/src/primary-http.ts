@@ -32,10 +32,13 @@ export class PrimaryHttpServer {
   private proxyClientCount = 0;
   private onClientCountChange: ((count: number) => void) | null = null;
 
-  constructor(port: number, version: string, executor: ToolExecutor) {
+  private toolCount: number;
+
+  constructor(port: number, version: string, executor: ToolExecutor, toolCount: number) {
     this.port = port;
     this.serverVersion = version;
     this.executeToolCall = executor;
+    this.toolCount = toolCount;
   }
 
   getLastActivityTime(): number {
@@ -85,6 +88,7 @@ export class PrimaryHttpServer {
         res.end(JSON.stringify({
           server: 'godot-mcp-server',
           version: this.serverVersion,
+          tool_count: this.toolCount,
         }));
         return;
       }

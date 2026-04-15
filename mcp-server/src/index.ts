@@ -41,7 +41,7 @@ import { probeExistingServer, proxyToolCall, registerProxyClient, unregisterProx
 // ---------------------------------------------------------------------------
 
 const SERVER_NAME = 'godot-mcp-server';
-const SERVER_VERSION = '0.4.2';
+const SERVER_VERSION = '0.4.3';
 const WEBSOCKET_PORT = parseInt(process.env.GODOT_MCP_PORT || '6505', 10);
 const HTTP_PORT = parseInt(process.env.GODOT_MCP_HTTP_PORT || '6506', 10);
 const TOOL_TIMEOUT = parseInt(process.env.GODOT_MCP_TIMEOUT_MS || '30000', 10);
@@ -301,7 +301,7 @@ async function startPrimary(): Promise<void> {
   }
 
   // --- Start HTTP server for proxies ---
-  const httpServer = new PrimaryHttpServer(HTTP_PORT, SERVER_VERSION, executeToolCall);
+  const httpServer = new PrimaryHttpServer(HTTP_PORT, SERVER_VERSION, executeToolCall, allTools.length + 1);
   httpServer.setClientCountChangeCallback(() => notifyClientStatus());
 
   try {
@@ -472,6 +472,16 @@ async function main(): Promise<void> {
   const probe = await probeExistingServer(HTTP_PORT);
 
   if (probe.alive) {
+    const localToolCount = allTools.length + 1; // +1 for get_godot_status
+    const primaryStale = probe.version !== SERVER_VERSION
+      || (probe.toolCount != null && probe.toolCount !== localToolCount);
+    if (primaryStale) {
+      console.error(`[${SERVER_NAME}] Replacing outdated primary (v${probe.version}, ${probe.toolCount ?? '?'} tools) with v${SERVER_VERSION} (${localToolCount} tools)...`);
+      await killProcessOnPort(HTTP_PORT);
+      await killProcessOnPort(WEBSOCKET_PORT);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return startPrimary();
+    }
     console.error(`[${SERVER_NAME}] Found existing primary server (v${probe.version})`);
     return startProxy();
   }

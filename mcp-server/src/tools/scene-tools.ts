@@ -105,7 +105,7 @@ export const sceneTools: ToolDefinition[] = [
   },
   {
     name: 'modify_node_property',
-    description: 'Modify a property on a node in a .tscn scene file. ALWAYS use this tool to modify properties in scene files - NEVER edit .tscn files directly. Use this to change positions, colors, sizes, visibility, etc.',
+    description: 'Modify a property on a node in a .tscn scene file. ALWAYS use this tool to modify properties in scene files - NEVER edit .tscn files directly. Supports 3D typed values such as Quaternion, Basis, Transform3D, and AABB in addition to vectors, colors, and primitives.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -122,8 +122,14 @@ export const sceneTools: ToolDefinition[] = [
           description: 'Name of the property to modify (position, scale, rotation, modulate, visible, etc.)'
         },
         value: {
-          type: 'object',
-          description: 'New value. For Vector2/Vector3/Color, use {type: "Vector2", x: 100, y: 200}. For primitives, use directly.'
+          oneOf: [
+            { type: 'object' },
+            { type: 'array' },
+            { type: 'string' },
+            { type: 'number' },
+            { type: 'boolean' }
+          ],
+          description: 'New value. Examples: {type:"Vector3",x:1,y:2,z:3}, {type:"Quaternion",x:0,y:0,z:0,w:1}, {type:"Basis",euler:{x:0,y:1.57,z:0}}, {type:"Transform3D",basis:{...},origin:{x:0,y:2,z:0}}, {type:"AABB",position:{x:-1,y:0,z:-1},size:{x:2,y:1,z:2}}. For primitives, use directly.'
         }
       },
       required: ['scene_path', 'property_name', 'value']
@@ -267,6 +273,178 @@ export const sceneTools: ToolDefinition[] = [
         }
       },
       required: ['scene_path', 'texture_type']
+    }
+  },
+  {
+    name: 'instance_scene',
+    description: 'Add an instance of another scene (.tscn) as a child node. This is how you compose scenes from reusable parts (like prefabs). The instance maintains a live reference to the source scene. Use this instead of add_node when you want to reuse an existing scene.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scene_path: {
+          type: 'string',
+          description: 'Path to the scene file being edited (the parent scene)'
+        },
+        instance_path: {
+          type: 'string',
+          description: 'Path to the .tscn scene to instance (the child/prefab scene)'
+        },
+        node_name: {
+          type: 'string',
+          description: 'Optional name for the instance. If omitted, uses the instanced scene\'s root node name.'
+        },
+        parent_path: {
+          type: 'string',
+          description: 'Path to parent node within the scene (. for root, or relative path like Level/Enemies)'
+        },
+        properties: {
+          type: 'object',
+          description: 'Optional property overrides on the instance root (e.g., {position: {type: "Vector3", x: 5, y: 0, z: 10}})'
+        }
+      },
+      required: ['scene_path', 'instance_path']
+    }
+  },
+  {
+    name: 'set_mesh',
+    description: 'Create and assign a mesh resource to a MeshInstance3D node. REQUIRED to make 3D geometry visible. Primitive types: BoxMesh, SphereMesh, CylinderMesh, CapsuleMesh, PlaneMesh, PrismMesh, TorusMesh, QuadMesh, TextMesh. Or load from file.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scene_path: {
+          type: 'string',
+          description: 'Path to the .tscn scene file'
+        },
+        node_path: {
+          type: 'string',
+          description: 'Path to the MeshInstance3D node within the scene'
+        },
+        mesh_type: {
+          type: 'string',
+          description: 'Mesh class: "BoxMesh", "SphereMesh", "CylinderMesh", "CapsuleMesh", "PlaneMesh", "PrismMesh", "TorusMesh", "QuadMesh", "TextMesh", or "file" to load from a resource path'
+        },
+        mesh_params: {
+          type: 'object',
+          description: 'BoxMesh: {size:{x,y,z}}. SphereMesh: {radius,height,radial_segments,rings}. CylinderMesh: {top_radius,bottom_radius,height}. CapsuleMesh: {radius,height}. PlaneMesh: {size:{x,y}}. PrismMesh: {left_to_right,size:{x,y,z}}. TorusMesh: {inner_radius,outer_radius,rings}. QuadMesh: {size:{x,y}}. TextMesh: {text,font_size,depth}. file: {path:"res://mesh.tres"}'
+        }
+      },
+      required: ['scene_path', 'mesh_type']
+    }
+  },
+  {
+    name: 'set_material',
+    description: 'Create and assign a material to a MeshInstance3D, CSG, or GeometryInstance3D node. Supports StandardMaterial3D or loading from file.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scene_path: {
+          type: 'string',
+          description: 'Path to the .tscn scene file'
+        },
+        node_path: {
+          type: 'string',
+          description: 'Path to the target node'
+        },
+        material_type: {
+          type: 'string',
+          description: '"StandardMaterial3D" or "file" to load from a resource path'
+        },
+        material_params: {
+          type: 'object',
+          description: 'StandardMaterial3D: {albedo_color:{r,g,b,a}, metallic:0-1, roughness:0-1, emission:{r,g,b}, emission_energy:float, transparency:0=disabled/1=alpha/2=scissor/3=hash/4=depth_pre_pass}. file: {path:"res://material.tres"}'
+        },
+        surface_index: {
+          type: 'number',
+          description: 'For MeshInstance3D only: surface index for per-surface override. Omit for material_override on all surfaces.'
+        }
+      },
+      required: ['scene_path', 'material_type']
+    }
+  },
+  {
+    name: 'get_node_spatial_info',
+    description: 'Query computed 3D spatial data for a Node3D in a scene file. Returns local/global positions, scales, rotation quaternions, and subtree bounding boxes (AABB) when available. Use this before making precise 3D placement decisions.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scene_path: {
+          type: 'string',
+          description: 'Path to the .tscn scene file'
+        },
+        node_path: {
+          type: 'string',
+          description: 'Path to the Node3D (. for root, or relative path like Level/Props/Crate)'
+        },
+        include_bounds: {
+          type: 'boolean',
+          description: 'Include computed subtree AABBs when visual descendants exist (default: true)'
+        }
+      },
+      required: ['scene_path']
+    }
+  },
+  {
+    name: 'measure_node_distance',
+    description: 'Measure the world-space distance between two Node3D nodes in a scene file. Returns both the full 3D delta and the horizontal XZ distance.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scene_path: {
+          type: 'string',
+          description: 'Path to the .tscn scene file'
+        },
+        from_node_path: {
+          type: 'string',
+          description: 'Path to the first Node3D'
+        },
+        to_node_path: {
+          type: 'string',
+          description: 'Path to the second Node3D'
+        }
+      },
+      required: ['scene_path', 'from_node_path', 'to_node_path']
+    }
+  },
+  {
+    name: 'snap_node_to_grid',
+    description: 'Snap a Node3D position to a grid in local or global space. Useful for modular level building and keeping 3D scenes aligned.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scene_path: {
+          type: 'string',
+          description: 'Path to the .tscn scene file'
+        },
+        node_path: {
+          type: 'string',
+          description: 'Path to the Node3D to snap'
+        },
+        grid_size: {
+          description: 'Positive grid size. Use a number for uniform snapping or {x,y,z} for per-axis snapping.',
+          oneOf: [
+            { type: 'number' },
+            {
+              type: 'object',
+              properties: {
+                x: { type: 'number' },
+                y: { type: 'number' },
+                z: { type: 'number' }
+              },
+              required: ['x', 'y', 'z']
+            }
+          ]
+        },
+        axes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Axes to snap. Any of: ["x"], ["x","z"], ["x","y","z"] (default: all axes)'
+        },
+        space: {
+          type: 'string',
+          description: 'Coordinate space: "local" or "global" (default: "global")'
+        }
+      },
+      required: ['scene_path', 'grid_size']
     }
   }
 ];

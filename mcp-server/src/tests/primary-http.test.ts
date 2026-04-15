@@ -52,7 +52,7 @@ describe('PrimaryHttpServer — lifecycle', () => {
   });
 
   it('isListening() is false before start', () => {
-    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop);
+    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop, 0);
     expect(server.isListening()).toBe(false);
   });
 
@@ -64,21 +64,21 @@ describe('PrimaryHttpServer — lifecycle', () => {
   });
 
   it('isListening() is false after stop', async () => {
-    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop);
+    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop, 0);
     await server.start();
     server.stop();
     expect(server.isListening()).toBe(false);
   });
 
   it('stop() is idempotent', async () => {
-    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop);
+    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop, 0);
     await server.start();
     server.stop();
     expect(() => server.stop()).not.toThrow();
   });
 
   it('proxyClientCount starts at 0', () => {
-    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop);
+    server = new PrimaryHttpServer(getPort(), '0.0.1-test', noop, 0);
     expect(server.getProxyClientCount()).toBe(0);
   });
 });
@@ -97,7 +97,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('GET /health returns server info', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     const res = await request(port, 'GET', '/health');
@@ -109,7 +109,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('GET /health updates lastActivityTime', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     const before = server.getLastActivityTime();
@@ -123,7 +123,7 @@ describe('PrimaryHttpServer — endpoints', () => {
     const executor: ToolExecutor = vi.fn(async (name, args) => ({
       content: [{ type: 'text', text: JSON.stringify({ name, args }) }],
     }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     const res = await request(port, 'POST', '/tool', JSON.stringify({ name: 'read_file', args: { path: '/a.gd' } }));
@@ -134,7 +134,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('POST /tool with missing name returns 400', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     const res = await request(port, 'POST', '/tool', JSON.stringify({ args: {} }));
@@ -147,7 +147,7 @@ describe('PrimaryHttpServer — endpoints', () => {
     const executor: ToolExecutor = vi.fn(async (name, args) => ({
       content: [{ type: 'text', text: JSON.stringify({ name, args }) }],
     }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     await request(port, 'POST', '/tool', JSON.stringify({ name: 'some_tool' }));
@@ -157,7 +157,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('POST /client/register increments proxy client count', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     const res1 = await request(port, 'POST', '/client/register', '');
@@ -172,7 +172,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('POST /client/unregister decrements proxy client count', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     await request(port, 'POST', '/client/register', '');
@@ -186,7 +186,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('POST /client/unregister does not go below 0', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     const res = await request(port, 'POST', '/client/unregister', '');
@@ -197,7 +197,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('client count change callback fires on register/unregister', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     const counts: number[] = [];
     server.setClientCountChangeCallback((c) => counts.push(c));
     await server.start();
@@ -212,7 +212,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('unknown route returns 404', async () => {
     const port = getPort();
     const executor: ToolExecutor = vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] }));
-    server = new PrimaryHttpServer(port, '1.2.3', executor);
+    server = new PrimaryHttpServer(port, '1.2.3', executor, 0);
     await server.start();
 
     const res = await request(port, 'GET', '/nope');
@@ -222,7 +222,7 @@ describe('PrimaryHttpServer — endpoints', () => {
   it('executor error returns 500', async () => {
     const port = getPort();
     const failing: ToolExecutor = async () => { throw new Error('boom'); };
-    server = new PrimaryHttpServer(port, '1.2.3', failing);
+    server = new PrimaryHttpServer(port, '1.2.3', failing, 0);
     await server.start();
 
     const res = await request(port, 'POST', '/tool', JSON.stringify({ name: 'fail_tool' }));
