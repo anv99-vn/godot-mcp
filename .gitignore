@@ -26,3 +26,4 @@ dist/
 
 # Cursor
 .cursor/
+addons/godot_mcp/cache/
